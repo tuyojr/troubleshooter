@@ -1,0 +1,7 @@
+HOW TO CREATE AN ALIAS
+
+alias alias_name='command_name'
+
+HOW TO REMOVE AN ALIAS
+
+unalias alias_name

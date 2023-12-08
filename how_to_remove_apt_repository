@@ -1,0 +1,12 @@
+https://askubuntu.com/questions/307/how-can-ppas-be-removed
+
+HOW TO REMOVE APT PPA REPOSITORY
+
+sudo add-apt-repository --remove ppa:whatever/ppa
+sudo apt-get purge package_name
+
+OR
+
+sudo apt-get install ppa-purge
+sudo ppa-purge ppa:whatever/ppa
+sudo apt-get purge package_name

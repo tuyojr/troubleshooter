@@ -1,0 +1,13 @@
+HOW TO FIX SUDOERS ERROR
+/etc/sudoers:50:25: syntax error
+%sudo	ALL=(ALL:ALL) ALL NOPASSWD:ALL
+                        ^~~~~~~~~
+[sudo] password for $USER: 
+$USER is not in the sudoers file.  This incident will be reported.
+
+---> pkexec nano /etc/sudoers # to edit the sudoers file. Enter your admin password now, and procced to fix the error to the below.
+
+----edit the line to look like this-----
+PREVIOUS: %sudo  ALL=(ALL) ALL
+# Allow members of group sudo to execute any command
+CURRENT: %sudo   ALL=(ALL:ALL) NOPASSWD:ALL
