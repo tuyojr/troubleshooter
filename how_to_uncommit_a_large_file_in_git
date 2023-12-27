@@ -1,0 +1,5 @@
+HOW TO 'UNCOMMIT' A LARGE FILE IN GIT
+
+Do `git reset HEAD^` for as many commits you want to undo, it will keep your changes and your actual state of your files, just flushing the commits of them.
+
+https://stackoverflow.com/questions/20002557/how-to-remove-a-too-large-file-in-a-commit-when-my-branch-is-ahead-of-master-by
