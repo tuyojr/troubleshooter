@@ -1,0 +1,3 @@
+The root user can find "unowned" files and directories by running:
+
+find / -nouser -nogroup 2>/dev/null.
