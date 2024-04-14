@@ -1,0 +1,9 @@
+# https://solana.stackexchange.com/a/4311
+
+export CARGO_NET_GIT_FETCH_WITH_CLI=true
+git config --global http.lowSpeedLimit 1000
+git config --global http.lowSpeedTime 60
+rm -rf ~/.cargo/registry
+rm -r $HOME/.cache/solana
+# run the cargo build-bpf --manifest-path=./src/program-rust/Cargo.toml --bpf-out-dir=dist/program
+# again
