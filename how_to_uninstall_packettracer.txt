@@ -1,0 +1,5 @@
+# https://unix.stackexchange.com/a/604976
+
+sudo apt-get autoremove  packettracer
+sudo apt-get remove packettracer
+sudo apt-get clean
