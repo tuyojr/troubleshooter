@@ -1,0 +1,711 @@
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+----------------------------------------------
+Create a static pod on node01 called nginx-critical with image nginx and make sure that it is recreated/restarted automatically in case of a failure.
+
+
+Use /etc/kubernetes/manifests as the Static Pod path for example
+
+cat <<EOF >/etc/kubernetes/manifests/static.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-critical
+spec:
+  containers:
+  - image: nginx
+    name: nginx-critical
+EOF
+
+scp /etc/kubernetes/manifests/static.yaml node01:/root/
+
+ssh node01
+
+mkdir -p /etc/kubernetes/manifests
+
+# Add that complete path to the staticPodPath field in the kubelet config.yaml file.
+vi /var/lib/kubelet/config.yaml
+# save
+
+cp /root/static.yaml /etc/kubernetes/manifests/
+
+exit
+
+kubectl get pods 
+----------------------------------------------
+Create a nginx pod called nginx-resolver using image nginx, expose it internally with a service called nginx-resolver-service. Test that you are able to look up the service and pod names from within the cluster. Use the image: busybox:1.28 for dns lookup. Record results in /root/CKA/nginx.svc and /root/CKA/nginx.pod
+
+
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-resolver
+spec:
+  containers:
+  - image: nginx
+    name: nginx-resolver
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-resolver-service
+spec:
+  ports:
+  - targetPort: 80
+    port: 80
+  selector:
+    name: nginx-resolver
+EOF
+
+kubectl run test-nslookup --image=busybox:1.28 --rm -it --restart=Never -- nslookup nginx-resolver-service > /root/CKA/nginx.svc
+
+kubectl get pod nginx-resolver -o wide
+
+kubectl run test-nslookup --image=busybox:1.28 --rm -it --restart=Never -- nslookup 10.244.192.4 > /root/CKA/nginx.pod
+----------------------------------------------
+Create a new user called john. Grant him access to the cluster. John should have permission to create, list, get, update and delete pods in the development namespace . The private key exists in the location: /root/CKA/john.key and csr at /root/CKA/john.csr.
+Important Note: As of kubernetes 1.19, the CertificateSigningRequest object expects a signerName.
+
+Create user CSR
+openssl genrsa -out user1.key 2048
+openssl req -new -key user1.key -out user1.csr
+
+Approve CSR
+openssl x509 -req -in /root/CKA/john.csr -CA /etc/kubernetes/pki/ca.crt -CAkey /etc/kubernetes/pki/ca.key -CAcreateserial -out /root/CKA/john.crt -days 600
+
+OR
+
+cat <<EOF | kubectl apply -f -
+apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+metadata:
+  name: john-developer
+spec:
+  request: $(cat /root/CKA/john.csr | base64 | tr -d '\n')
+  signerName: kubernetes.io/kube-apiserver-client
+  usages:
+  - digital signature
+  - key encipherment
+  - client auth
+EOF
+
+kubectl certificate approve john-developer
+
+# Create Role and RoleBinding
+cat <<EOF | kubectl apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name:  developer
+  namespace: development
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+  - list
+  - get
+  - update
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: developer-role-binding
+  namespace: development
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: developer
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: john
+EOF
+
+----------------------------------------------
+A pod definition file is created at /root/CKA/use-pv.yaml. Make use of this manifest file and mount the persistent volume called pv-1. Ensure the pod is running and the PV is bound.
+mountPath: /data
+
+
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc
+spec:
+  volumeName: pv-1
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Mi
+EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    run: use-pv
+  name: use-pv
+spec:
+  containers:
+  - image: nginx
+    name: use-pv
+    resources: {}
+    volumeMounts:
+    - mountPath: "/data"
+      name: mypd
+  volumes:
+    - name: mypd
+      persistentVolumeClaim:
+        claimName: my-pvc
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+status: {}
+----------------------------------------------
+Create a new pod called super-user-pod with image busybox:1.28. Allow the pod to be able to set system_time.
+The container should sleep for 4800 seconds.
+
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: super-user-pod
+  name: super-user-pod
+spec:
+  containers:
+  - command:
+    - sleep
+    - "4800"
+    image: busybox:1.28
+    name: super-user-pod
+    securityContext:
+      capabilities:
+        add: ["SYS_TIME"]
+  restartPolicy: Always
+EOF
+----------------------------------------------
+Create a Pod called redis-storage with image: redis:alpine with a Volume of type emptyDir that lasts for the life of the Pod. mountPath = /data/redis
+
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: redis-storage
+spec:
+  containers:
+  - image: redis:alpine
+    name: redis-storage
+    volumeMounts:
+    - mountPath: /data/redis
+      name: redis-storage
+  volumes:
+  - name: redis-storage
+    emptyDir:
+      sizeLimit: 500Mi
+EOF
+----------------------------------------------
+kubectl get nodes -o=jsonpath='{.items[*].status.nodeInfo.osImage}' >> /opt/outputs/nodes_os_x43kj56.txt
+----------------------------------------------
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-analytics
+spec:
+  capacity:
+    storage: 100Mi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: /pv/data-analytics
+EOF
+----------------------------------------------
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Service
+metadata:
+  name: hr-web-app-service
+spec:
+  type: NodePort
+  ports:
+  - targetPort: 8080
+    port: 8080
+    nodePort: 30082
+  selector:
+    app: hr-web-app
+EOF
+----------------------------------------------
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: temp-bus
+  namespace: finance
+spec:
+  containers:
+    - name: temp-bus
+      image: redis:alpine
+EOF
+----------------------------------------------
+STATIC POD /etc/kubernetes/manifests/
+
+cat <<EOF >/etc/kubernetes/manifests/static-busybox.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: static-busybox
+  name: static-busybox
+spec:
+  containers:
+  - command:
+    - sleep
+    - "1000"
+    image: busybox
+    name: static-busybox
+  restartPolicy: Never
+EOF
+
+systemctl restart kubelet
+
+OR
+
+kubectl run --restart=Never --image=busybox static-busybox --dry-run=client -oyaml --command -- sleep 1000 > /etc/kubernetes/manifests/static-busybox.yaml
+----------------------------------------------
+DECLARATIVE --- apply
+
+cat <<EOF | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hr-web-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hr-web-app
+  template:
+    metadata:
+      labels:
+        app: hr-web-app
+    spec:
+      containers:
+      - name: hr-web-app
+        image: kodekloud/webapp-color
+EOF
+----------------------------------------------
+IMPERATIVE --- create
+
+cat <<EOF | kubectl create -f -
+apiVersion: v1
+kind: Service
+metadata:
+  name: messaging-service
+spec:
+  ports:
+  - targetPort: 6379
+    port: 6379
+  selector:
+    tier: msg
+EOF
+----------------------------------------------
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: secret-1401
+  name: secret-1401
+  namespace: admin1401
+spec:
+  volumes:
+  - name: secret-volume
+    secret:
+      secretName: dotfile-secret
+  containers:
+  - command:
+    - sleep
+    - "4800"
+    image: busybox
+    name: secret-admin
+    volumeMounts:
+    - name: secret-volume
+      readOnly: true
+      mountPath: "/etc/secret-volume" 
+EOF
+----------------------------------------------
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-alpha-pvc
+  namespace: alpha
+spec:
+  storageClassName: slow
+  volumeName: alpha-pv
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+EOF
+----------------------------------------------
+kubectl set image deployments/nginx-deploy nginx-app=nginx:1.17
+
+cat <<EOF | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deploy
+  labels:
+    app: nginx-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-app
+  template:
+    metadata:
+      labels:
+        app: nginx-app
+    spec:
+      containers:
+      - name: nginx-app
+        image: nginx:1.16
+        ports:
+        - containerPort: 80
+EOF
+----------------------------------------------
+Print the names of all deployments in the admin2406 namespace in the following format:
+
+DEPLOYMENT   CONTAINER_IMAGE   READY_REPLICAS   NAMESPACE
+
+<deployment name>   <container image used>   <ready replica count>   <Namespace>
+. The data should be sorted by the increasing order of the deployment name
+
+kubectl get deployments -n admin2406 -o custom-columns="DEPLOYMENT:.metadata.name,CONTAINER_IMAGE:.spec.template.spec.containers[*].image,READY_REPLICAS:.status.readyReplicas,NAMESPACE:.metadata.namespace" --sort-by=.metadata.name
+----------------------------------------------
+backup and restore etcd ----
+
+export ETCDCTL_API=3
+
+etcdctl snapshot save /opt/etcd-backup.db --cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key --cacert=/etc/kubernetes/pki/etcd/ca.crt --endpoints=https://127.0.0.1:2379
+
+etcdctl --data-dir=/var/lib/etcd-from-backup snapshot restore /opt/snapshot-pre-boot.db
+
+vi /etc/kubernetes/manifests/etcd.yaml
+
+  volumes:
+...
+  - hostPath:
+      path: /var/lib/etcd-from-backup ---> update this to the data-dir
+      type: DirectoryOrCreate
+    name: etcd-data
+
+kubectl delete pod -n kube-system etcd-controlplane ---> if the etcd pod is not getting Ready 1/1
+----------------------------------------------
+upgrade worker-node ----
+
+kubectl drain node-name --ignore-daemonsets
+
+ssh node-name
+
+vim /etc/apt/sources.list.d/kubernetes.list
+
+# Update the version in the URL to the next available minor release, i.e v1.29.
+deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /
+
+OR
+
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+apt-get update 
+
+apt-cache madison kubeadm
+
+apt-get install kubeadm=1.29.0-1.1 kubelet=1.29.0-1.1 kubectl=1.29.0-1.1
+
+kubeadm upgrade node
+
+systemctl daemon-reload
+
+systemctl restart kubelet
+
+exit
+
+kubectl uncordon node-name
+
+----------------------------------------------
+upgrade controlplane ----
+
+kubectl drain controlplane --ignore-daemonsets
+
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+apt-get update 
+
+apt-cache madison kubeadm
+
+apt-get install kubeadm=1.29.0-1.1 kubelet=1.29.0-1.1 kubectl=1.29.0-1.1
+
+kubeadm upgrade plan v1.29.0
+
+kubeadm upgrade apply v1.29.0
+
+systemctl daemon-reload
+
+systemctl restart kubelet
+
+kubeadm version 
+
+apt show kubectl -a
+
+kubectl get nodes
+
+kubectl uncordon controlplane
+
+kubectl taint node controlplane node-role.kubernetes.io/control-plane:NoSchedule-
+
+OR
+
+On the controlplane node:
+
+Use any text editor you prefer to open the file that defines the Kubernetes apt repository.
+
+vim /etc/apt/sources.list.d/kubernetes.list
+Update the version in the URL to the next available minor release, i.e v1.29.
+
+deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /
+
+----------------------------------------------
+kubectl config view --kubeconfig=my-kube-config -o jsonpath="{.contexts[?(@.context.user=='aws-user')].name}" > /opt/outputs/aws-context-name
+
+kubectl get pv -o=custom-columns=NAME:.metadata.name,CAPACITY:.spec.capacity.storage --sort-by=.spec.capacity.storage
+
+$.items.*.spec.capacity.storage
+$.users.*.name
+$.items.*.status.nodeInfo.osImage
+$.items.*.metadata.name
+----------------------------------------------
+kube-proxy configuration file ---> /var/lib/kube-proxy/config.conf on pod
+----------------------------------------------
+NODE Troubleshooting
+journalctl -u kubelet -f ---> check kubelet logs
+/var/lib/kubelet/config.yaml ---> check for correct cert
+/etc/kubernetes/kubelet.conf ---> check for correct kube-apiserver port
+----------------------------------------------
+ssh nodeName
+
+ip route ---> find the the default gateway configured on a POD
+----------------------------------------------
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app
+  labels:
+    name: nginx-app
+spec:
+  nodeName: node01
+  containers:
+  - name: app
+    image: nginx
+    ports:
+    - containerPort: 8080
+EOF
+----------------------------------------------
+end of service for Weave Cloud.
+
+To know more about this, read the blog from the link below: -
+
+https://www.weave.works/blog/weave-cloud-end-of-service
+
+As an impact, the old weave net installation link won’t work anymore: -
+
+kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+
+Instead of that, use the below latest link to install the weave net: -
+
+kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.8.1/weave-daemonset-k8s.yaml
+
+Reference links: -
+
+https://www.weave.works/docs/net/latest/kubernetes/kube-addon/#-installation
+
+https://github.com/weaveworks/weave/releases
+----------------------------------------------
+CREATE A STORAGE CLASS
+
+cat <<EOF | kubectl apply -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: delayed-volume-sc
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+EOF
+----------------------------------------------
+CREATE A PVC
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: local-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-storage
+  resources:
+    requests:
+      storage: 500Mi
+EOF
+----------------------------------------------
+CREATE A PV
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-log
+spec:
+  capacity:
+    storage: 100Mi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: /pv/log
+  persistentVolumeReclaimPolicy: Retain
+EOF
+
+----------------------------------------------
+USING PVC IN A POD
+
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  containers:
+    - name: nginx
+      image: nginx:alpine
+      volumeMounts:
+      - mountPath: "/var/www/html"
+        name: mypd
+  volumes:
+    - name: mypd
+      persistentVolumeClaim:
+        claimName: local-pvc
+EOF
+----------------------------------------------
+SETUP KUBECTX AND KUBENS
+sudo git clone https://github.com/ahmetb/kubectx /opt/kubectx
+sudo ln -s /opt/kubectx/kubectx /usr/local/bin/kubectx
+sudo ln -s /opt/kubectx/kubens /usr/local/bin/kubens
+----------------------------------------------
+cat <<EOF | kubectl apply -f -
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: internal-policy
+spec:
+  podSelector:
+    matchLabels:
+      name: internal
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          name: payroll
+    ports:
+    - protocol: TCP
+      port: 8080
+  - to:
+    - podSelector:
+        matchLabels:
+          name: mysql
+    ports:
+    - protocol: TCP
+      port: 3306
+EOF
+----------------------------------------------
+jq -R 'split(".") | select(length > 0) | .[0],.[1] | @base64d | fromjson' <<< token_value
+
+decode a JWT via CLI - dbubenheim
+https://gist.github.com/angelo-v/e0208a18d455e2e6ea3c40ad637aac53
+
+----------------------------------------------
+cat <<EOF | kubectl apply -f -
+apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+metadata:
+  name: akshay
+spec:
+  request: $(cat akshay.csr | base64 | tr -d '\n')
+  signerName: kubernetes.io/kube-apiserver-client
+  usages:
+  - digital signature
+  - key encipherment
+  - server auth
+EOF
+----------------------------------------------
+cat <<EOF | kubectl apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-user-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: developer
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: dev-user
+EOF
+----------------------------------------------
+cat <<EOF | kubectl apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: developer
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - list
+  - create
+  - delete
+EOF
