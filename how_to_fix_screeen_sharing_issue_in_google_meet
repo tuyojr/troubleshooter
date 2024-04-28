@@ -1,0 +1,16 @@
+HOW TO FIX SCREEN SHARING ISSUE GOOGLE MEET
+
+#https://askubuntu.com/a/1309637
+
+Search for the file.conf in /etc/gdm3/ in my case, Ubuntu 20, it's custom.conf
+
+sudo nano /etc/gdm3/custom.conf
+uncomment the line
+
+#WaylandEnable=false to be WaylandEnable=false
+
+then reboot
+
+"uncommenting that line will use the Xorg display manager instead of Wayland "
+
+Works on: Ubuntu 20/21/22
