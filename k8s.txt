@@ -23,6 +23,25 @@
 ----------------------------------------------
 ----------------------------------------------
 ----------------------------------------------
+RESTORE AN EXTERNAL ETCD
+
+1. On the node with the backup, run:
+scp /opt/cluster2.db etcd-server:/root
+
+2. log in to the external etcd server and run:
+ETCDCTL_API=3 etcdctl --endpoints=https://127.0.0.1:2379 --cacert=/etc/etcd/pki/ca.pem --cert=/etc/etcd/pki/etcd.pem --key=/etc/etcd/pki/etcd-key.pem snapshot restore /root/cluster2.db --data-dir /var/lib/etcd-data-new
+
+3. Update the systemd service unit file for etcdby running vi /etc/systemd/system/etcd.service and add the new value for data-dir
+
+4. make sure the permissions on the new directory is correct (should be owned by etcd user):
+chown -R etcd:etcd /var/lib/etcd-data-new
+ls -ld /var/lib/etcd-data-new/
+
+5. Finally, reload and restart the etcd service.
+systemctl daemon-reload
+systemctl restart etcd
+
+6. Step 6 (optional): It is recommended to restart controlplane components (e.g. kube-scheduler, kube-controller-manager, kubelet) to ensure that they don't rely on some stale data.
 ----------------------------------------------
 Create a static pod on node01 called nginx-critical with image nginx and make sure that it is recreated/restarted automatically in case of a failure.
 
