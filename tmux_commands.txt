@@ -1,0 +1,10 @@
+TMUX HELPFUL COMMANDS
+
+tmux - start a session
+tmux list-sessions - see all running sessions
+tmux attach - enter into the most recent session
+ctrl + B and press D - detach from a session 
+ctrl + B and shift + % - split the window vertically
+ctrl + B and shift + double_quotes - split the window horizontally
+ctrl + B and arrow key - move to the next split
+ctrl + B and press x - confirm with y/n kill a pane
