@@ -8,3 +8,16 @@ ctrl + B and shift + % - split the window vertically
 ctrl + B and shift + double_quotes - split the window horizontally
 ctrl + B and arrow key - move to the next split
 ctrl + B and press x - confirm with y/n kill a pane
+run 'tmux new-window' inside tmux - creates a new window inside tmux
+ctrl + B and press C - creates a new window inside tmux
+ctrl + B and press P - switch to the previouswindow
+ctrl + B and press N - switch to the next window
+ctrl + B and press & - press y/n to kill the window
+ctrl B and press , - rename a window
+tmux rename-window <new_name> - rename a window
+tmux attach -t 1 - attach to a specific session
+tmux ls - list tmux sessions
+tmux a - attach to most recent tmux session
+tmux rename-session <session name> - run this while attached to a session to rename the session
+ctrl + B and press $ - run this while attached to a session to rename the session in a dialogue taht pops up at the bottom
+ctrl + B and press S - to switch between sessions
