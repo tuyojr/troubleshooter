@@ -1,0 +1,11 @@
+HOW TO CONVERT YOUR PRE-EXISTING .pem KEY TO .ppk TO USE WITH PUTTY
+
+# First download putty on your Ubuntu22.04
+sudo apt-get update
+sudo apt-get install -y putty
+
+# Check if it successfully installed
+putty --version
+
+#Use the puttygen command to convert the key
+puttygen /path/to/key.pem -O private -o /path/to/same_key.ppk
