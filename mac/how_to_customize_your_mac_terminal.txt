@@ -1,0 +1,14 @@
+HOW TO CUSTOMIZE YOUR MAC TERMIAL
+
+# This ensures that your mac terminal displays a nice output rather than the default
+
+# open your ~/.zshrc file and add the following at the bottom
+
+autoload -Uz vcs_info
+precmd() { vcs_info }
+zstyle ':vcs_info:git:*' formats '%F{green}(%b)%f'
+setopt PROMPT_SUBST
+PROMPT='%F{cyan}%~%f ${vcs_info_msg_0_} $ '
+
+# save and quit and run or just exit your termincal and open it again
+source ~/.zshrc
