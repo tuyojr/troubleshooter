@@ -1,0 +1,8 @@
+# HOW TO ENSURE ALT + TAB SWITCHES BETWEEN OPEN WINDOWS
+
+# I assume you alread have gnome-tweaks installed and are actively using it and then you try to switch between tabs, but instead it is grouped. Just paste these commands to undo that.
+
+gsettings set org.gnome.desktop.wm.keybindings switch-applications "[]"
+gsettings set org.gnome.desktop.wm.keybindings switch-applications-backward "[]" 
+gsettings set org.gnome.desktop.wm.keybindings switch-windows "['<Alt>Tab']"
+gsettings set org.gnome.desktop.wm.keybindings switch-windows-backward "['<Shift><Alt>Tab']"
