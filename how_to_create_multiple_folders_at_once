@@ -7,3 +7,8 @@ mkdir {1,2,3}
 mkdir test{01..10}
 mkdir -p `date '+%y%m%d'`/{1,2,3} 
 mkdir -p $USER/{1,2,3}
+
+
+HOW TO CREATE MULTIPLE FOLDERS INSIDE SUB-FOLDERS
+
+for dir in path/to/folder/*/ path/to/folder2/*/; do touch "$dir/filename"; done
