@@ -1,0 +1,18 @@
+# HOW TO FIX VBOX UNABLE TO OPERATE IN VMX MODE
+
+# ERROR when running vagrant up
+There was an error while executing `VBoxManage`, a CLI used by Vagrant
+for controlling VirtualBox. The command and stderr is shown below.
+
+Command: ["startvm", "1320fcb3-e4c3-4755-a2ac-9ef754952ab3", "--type", "headless"]
+
+Stderr: VBoxManage: error: VT-x is being used by another hypervisor (VERR_VMX_IN_VMX_ROOT_MODE).
+VBoxManage: error: VirtualBox can't operate in VMX root mode. Please disable the KVM kernel extension, recompile your kernel and reboot (VERR_VMX_IN_VMX_ROOT_MODE)
+VBoxManage: error: Details: code NS_ERROR_FAILURE (0x80004005), component ConsoleWrap, interface IConsole
+
+
+
+# Run the following command
+sudo modprobe -r kvm_intel
+
+# Read more here: https://superuser.com/a/1874448
